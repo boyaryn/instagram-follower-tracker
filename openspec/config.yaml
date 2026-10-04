@@ -1,0 +1,41 @@
+schema: spec-driven
+
+# Project context, shown to AI when creating any artifact.
+context: |
+  Project: a local, single-user Python CLI (`igft`) that records who follows a few Instagram
+  profiles and when each follower first appeared. It is run by hand through a dedicated research
+  account, uses no paid services, and keeps results in a local PostgreSQL database that the user
+  also edits directly in their own SQL client.
+  Tech stack: Python 3.12, uv, Typer + Rich, SQLAlchemy 2.0 + psycopg 3, Alembic, PostgreSQL,
+  instaloader (behind a Fetcher protocol).
+  Platform: Ubuntu first (Firefox installed as a snap), but keep everything OS-neutral:
+  no hard-coded OS-specific paths.
+  Domain rules that matter everywhere: the tool never asks for or uses a password and never logs
+  in by itself (the session is imported from Firefox); request safety (slow, capped, no retries,
+  cooldowns) comes before completeness.
+
+# Per-artifact rules. They keep the split OpenSpec recommends:
+# specs say WHAT is observable, design says HOW, proposal says WHY and scope, tasks say the steps.
+rules:
+  proposal:
+    - Keep it to why, scope and impact. Describe changes at the level of behaviour and point to the specs and design.md instead of repeating their detail.
+    - Name a technology only when it is a user requirement or a scope decision (for example PostgreSQL, or which scraping library is in scope). Put the reasons and mechanics in design.md.
+    - Keep each capability description to one line, and keep risks to one line each with a pointer to design.md.
+  specs:
+    - Describe only observable behaviour - inputs, outputs, error conditions, and guarantees the user relies on - as testable requirements with scenarios.
+    - Do not name libraries, frameworks, the database engine (write "the database"), internal classes or functions, or step-by-step implementation. If the implementation could change without changing what the user or Instagram sees, it belongs in design.md.
+    - CLI commands and options, output formats, values the tool records, external signals from Instagram, and the table and column names the user edits or queries in their SQL client are part of the observable interface and may be named.
+  design:
+    - Hold the technical approach - technology and library choices with their rationale, architecture, schema, data flow, alternatives considered, risks and the migration plan.
+    - Do not restate requirements that the specs already define. Link to the capability instead.
+    - Keep Open Questions limited to questions that are still open.
+  tasks:
+    - Each task is one concrete step that ends with how it is verified.
+    - Put the tests and documentation a group of work calls for inside that group, not in a final catch-up group.
+    - Reference design decisions (for example D4) instead of copying their content.
+
+# Per-operation guidance (optional)
+# operations:
+#   apply:
+#     guidance:
+#       - Keep test summaries concise

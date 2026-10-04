@@ -1,0 +1,19 @@
+[
+  {
+    "exchanges": [
+      {
+        "method": "GET",
+        "url": "https://www.instagram.com/api/v1/users/web_profile_info/?<query redacted>",
+        "status": 429,
+        "elapsed_s": 0.09,
+        "content_type": "text/plain",
+        "body": "<body>"
+      }
+    ],
+    "exception": {
+      "type": "ConnectionException",
+      "message": "JSON Query to api/v1/users/web_profile_info/: 429 Too Many Requests when accessing https://www.instagram.com/api/v1/users/web_profile_info/?<query>",
+      "cause_type": "TooManyRequestsException"
+    }
+  }
+]

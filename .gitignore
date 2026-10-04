@@ -1,0 +1,29 @@
+# Python and tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Editor, OS and assistant-generated noise
+.DS_Store
+.idea/
+.claude/settings.local.json
+.codemie/
+docs/codemie/
+
+# Secrets and personal data: saved sessions and local config never go into version control
+*.session
+*.session.tmp*
+config.toml
+!config.example.toml
+.env
+.env.*
+
+# Spike scratch output (raw responses may contain personal data); sanitised fixtures live under tests/
+spike/output/
+spike/findings.local.md

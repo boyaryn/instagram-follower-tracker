@@ -1,0 +1,31 @@
+[
+  {
+    "exchanges": [
+      {
+        "method": "GET",
+        "url": "https://www.instagram.com/graphql/query?<query redacted>",
+        "status": 200,
+        "elapsed_s": 0.3,
+        "content_type": "application/json; charset=utf-8",
+        "body": {
+          "data": {
+            "user": {
+              "id": "1000000",
+              "profile_pic_url": "<profile_pic_url>",
+              "username": "<username>",
+              "edge_web_feed_timeline": null
+            }
+          },
+          "extensions": {
+            "is_final": true,
+            "server_metadata": {
+              "request_start_time_ms": 1790896600804,
+              "time_at_flush_ms": 1790896600858
+            }
+          },
+          "status": "ok"
+        }
+      }
+    ]
+  }
+]

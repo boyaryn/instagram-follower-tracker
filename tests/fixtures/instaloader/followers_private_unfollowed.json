@@ -1,0 +1,20 @@
+[
+  {
+    "note": "Written by hand from the probe's reported response for a private profile the research account does not follow.",
+    "exchanges": [
+      {
+        "method": "GET",
+        "url": "https://www.instagram.com/api/v1/friendships/<id>/followers/?<query redacted>",
+        "status": 200,
+        "elapsed_s": 0.9,
+        "content_type": "application/json; charset=utf-8",
+        "body": {
+          "has_more": false,
+          "status": "ok",
+          "use_clickable_see_more": false,
+          "users": []
+        }
+      }
+    ]
+  }
+]

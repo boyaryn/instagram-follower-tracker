@@ -1,0 +1,112 @@
+[
+  {
+    "note": "Written by hand from the end-of-list probe's reported response: a short list, has_more false, no next_max_id.",
+    "exchanges": [
+      {
+        "method": "GET",
+        "url": "https://www.instagram.com/api/v1/friendships/<id>/followers/?<query redacted>",
+        "status": 200,
+        "elapsed_s": 1.0,
+        "content_type": "application/json; charset=utf-8",
+        "body": {
+          "users": [
+            {
+              "fbid_v2": "1000000",
+              "pk": "1000001",
+              "pk_id": "1000001",
+              "id": "1000001",
+              "third_party_downloads_enabled": 1,
+              "strong_id__": "1000001",
+              "full_name": "<full_name>",
+              "is_private": false,
+              "is_verified": false,
+              "profile_pic_id": "<profile_pic_id>",
+              "profile_pic_url": "<profile_pic_url>",
+              "username": "<username>",
+              "account_badges": [],
+              "has_anonymous_profile_picture": false,
+              "latest_reel_media": 0
+            },
+            {
+              "fbid_v2": "1000002",
+              "pk": "1000003",
+              "pk_id": "1000003",
+              "id": "1000003",
+              "third_party_downloads_enabled": 0,
+              "strong_id__": "1000003",
+              "full_name": "<full_name>",
+              "is_private": false,
+              "is_verified": false,
+              "profile_pic_id": "<profile_pic_id>",
+              "profile_pic_url": "<profile_pic_url>",
+              "username": "<username>",
+              "account_badges": [],
+              "has_anonymous_profile_picture": false,
+              "latest_reel_media": 0
+            },
+            {
+              "fbid_v2": "1000004",
+              "pk": "1000005",
+              "pk_id": "1000005",
+              "id": "1000005",
+              "third_party_downloads_enabled": 1,
+              "strong_id__": "1000005",
+              "full_name": "<full_name>",
+              "is_private": false,
+              "is_verified": false,
+              "profile_pic_id": "<profile_pic_id>",
+              "profile_pic_url": "<profile_pic_url>",
+              "username": "<username>",
+              "account_badges": [],
+              "has_anonymous_profile_picture": false,
+              "latest_reel_media": 1700000000
+            },
+            {
+              "fbid_v2": "1000006",
+              "pk": "1000007",
+              "pk_id": "1000007",
+              "id": "1000007",
+              "third_party_downloads_enabled": 1,
+              "strong_id__": "1000007",
+              "full_name": "<full_name>",
+              "is_private": false,
+              "is_verified": false,
+              "profile_pic_id": "<profile_pic_id>",
+              "profile_pic_url": "<profile_pic_url>",
+              "username": "<username>",
+              "account_badges": [],
+              "has_anonymous_profile_picture": false,
+              "latest_reel_media": 0
+            },
+            {
+              "fbid_v2": "1000008",
+              "pk": "1000009",
+              "pk_id": "1000009",
+              "id": "1000009",
+              "third_party_downloads_enabled": 0,
+              "strong_id__": "1000009",
+              "full_name": "<full_name>",
+              "is_private": false,
+              "is_verified": false,
+              "profile_pic_id": "<profile_pic_id>",
+              "profile_pic_url": "<profile_pic_url>",
+              "username": "<username>",
+              "account_badges": [],
+              "has_anonymous_profile_picture": false,
+              "latest_reel_media": 0
+            }
+          ],
+          "big_list": false,
+          "page_size": 5,
+          "has_more": false,
+          "should_limit_list_of_followers": false,
+          "use_clickable_see_more": false,
+          "show_spam_follow_request_tab": false,
+          "follow_ranking_token": "<follow_ranking_token>",
+          "should_limit_list_of_followings": false,
+          "status": "ok"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,33 @@
+# Example igft configuration. Copy it to the per-user config path (on Ubuntu:
+# ~/.config/igft/config.toml) or point --config / IGFT_CONFIG at your copy.
+# Every setting is optional except database_url. Any setting can also be given as an
+# environment variable named IGFT_<SETTING>, for example IGFT_DATABASE_URL.
+# Keep real values out of version control: config.toml is git-ignored.
+
+# PostgreSQL connection URL (SQLAlchemy format, psycopg 3 driver).
+database_url = "postgresql+psycopg://igft@localhost/igft"
+
+# Where the saved session is stored. Default: <user data dir>/igft/sessions/instaloader.session
+# (on Ubuntu ~/.local/share/igft/sessions/instaloader.session).
+# instaloader_session_path = "~/.local/share/igft/sessions/instaloader.session"
+
+# Firefox profile directory holding the research account's Instagram session. Leave unset to
+# discover it (snap, Flatpak and classic locations are searched on Linux).
+# firefox_profile = "~/snap/firefox/common/.mozilla/firefox/abcd1234.default"
+
+# User agent instaloader presents with the imported Firefox cookies. Paste your Firefox's exact
+# user agent (about:support, "User Agent"). Unset: a desktop Firefox user agent for this OS.
+# instaloader_user_agent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:...) Gecko/20100101 Firefox/..."
+
+# Random delay between follower-page requests, in seconds.
+delay_min_seconds = 15
+delay_max_seconds = 45
+
+# Maximum follower pages fetched by one scan or resume run.
+page_cap = 300
+
+# Outside a baseline or --full scan, stop after this many pages in a row of already-known followers.
+early_stop_pages = 2
+
+# Cooldown after a rate limit, action block or challenge, in hours (longer if Instagram says so).
+cooldown_hours = 24
