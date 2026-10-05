@@ -458,6 +458,13 @@ RESPONSES = {
         "text/html",
         SignalKind.CHALLENGE,
     ),
+    "redirect to the verification page": (
+        302,
+        {"Location": "https://www.instagram.com/auth_platform/?apc=abc"},
+        "",
+        "text/html",
+        SignalKind.CHALLENGE,
+    ),
     "feedback_required": (
         400,
         {},
@@ -595,5 +602,13 @@ def test_a_signal_without_a_stated_wait_has_none():
 
 def test_a_login_redirect_with_a_challenge_in_its_query_is_still_a_rejected_session():
     response = response_for(302, {"Location": "https://www.instagram.com/accounts/login/?next=/challenge/"}, content_type="text/html")
+
+    assert classify(response).kind is SignalKind.SESSION_REJECTED
+
+
+def test_a_login_redirect_with_the_verification_page_in_its_query_is_still_a_rejected_session():
+    response = response_for(
+        302, {"Location": "https://www.instagram.com/accounts/login/?next=/auth_platform/"}, content_type="text/html"
+    )
 
     assert classify(response).kind is SignalKind.SESSION_REJECTED

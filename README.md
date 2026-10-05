@@ -410,7 +410,7 @@ Instagram objects. Nothing here removes the risk described under "Before you use
   |---|---|
   | rate limit | Starts a cooldown. |
   | action block | Starts a cooldown. |
-  | challenge (Instagram asks the account to verify itself) | Starts a cooldown and a hold: see below. |
+  | challenge (Instagram asks the account to verify itself, sometimes only to tick a "confirm you are human" box, with no email or SMS) | Starts a cooldown and a hold: see below. |
   | session rejected (the saved session is no longer valid) | Starts no cooldown. Restore the session with `igft session import`, then run `igft resume`. |
 
 - **Cooldowns.** A cooldown lasts `cooldown_hours` (24 by default), or longer if the message

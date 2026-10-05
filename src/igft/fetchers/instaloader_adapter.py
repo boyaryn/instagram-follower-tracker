@@ -40,6 +40,7 @@ PAGE_SIZE = 12  # what the web app asks for
 FIREFOX_VERSION = "140.0"
 _PROFILE_ID = re.compile(r'"profile_id":"(\d+)"')
 _USERNAME = re.compile(r"[A-Za-z0-9._]{1,30}")
+_CHALLENGE_PATH = re.compile(r"/(challenge|checkpoint|auth_platform)")
 _BODY_EXCERPT = 500
 
 
@@ -133,7 +134,7 @@ def classify(response: requests.Response) -> BlockSignal | FetchError:
     raw = describe(response)
     lowered = raw.lower()
     path = urlparse(response.headers.get("location", "")).path.lower()
-    if "challenge_required" in lowered or "checkpoint_required" in lowered or re.match(r"/(challenge|checkpoint)", path):
+    if "challenge_required" in lowered or "checkpoint_required" in lowered or _CHALLENGE_PATH.match(path):
         kind = SignalKind.CHALLENGE
     elif "feedback_required" in lowered:
         kind = SignalKind.ACTION_BLOCK
