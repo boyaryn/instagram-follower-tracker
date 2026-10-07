@@ -83,17 +83,19 @@ class FetchError(IgftError):
     def __init__(self, raw_message: str) -> None:
         super().__init__(f"Instagram request failed: {raw_message}")
         self.raw_message = raw_message
-        self.hint: str | None = None  # what to try next; set by the command that knows
 
 
 class BlockSignal(IgftError):
     """Instagram asked us to back off, verify the account, or log in again."""
 
-    def __init__(self, kind: SignalKind, raw_message: str, stated_wait: timedelta | None = None) -> None:
+    def __init__(
+        self, kind: SignalKind, raw_message: str, stated_wait: timedelta | None = None, *, withheld_list: bool = False
+    ) -> None:
         super().__init__(f"Instagram returned a {kind.value.replace('_', ' ')} signal: {raw_message}")
         self.kind = kind
         self.raw_message = raw_message
         self.stated_wait = stated_wait
+        self.withheld_list = withheld_list  # selects the guidance text only; not stored
         self.guidance: str | None = None  # what to do next; set once the signal has been recorded
 
 

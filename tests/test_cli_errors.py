@@ -48,11 +48,8 @@ def test_each_exception_maps_to_its_code_and_message(exc, code, fragment):
     assert fragment in message_for(exc)
 
 
-def test_a_fetch_error_hint_is_printed_after_the_message():
-    exc = FetchError("HTTP 400")
-    exc.hint = "Try `igft resume alice --restart`."
-
-    assert message_for(exc) == "Instagram request failed: HTTP 400\nTry `igft resume alice --restart`."
+def test_a_fetch_error_prints_only_its_message():
+    assert message_for(FetchError("HTTP 400")) == "Instagram request failed: HTTP 400"
 
 
 def test_database_connection_failures_are_user_errors():

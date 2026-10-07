@@ -59,8 +59,7 @@ def _report_kept(service: ScanService) -> None:
     scan = service.snapshot()
     typer.echo(
         f"Scan {scan.id} of @{service.username} is unfinished and kept: {scan.pages_fetched} pages, "
-        f"{scan.followers_seen} followers saved. Continue it with `igft resume {service.username}`, "
-        f"or start from page 1 with `igft resume {service.username} --restart`.",
+        f"{scan.followers_seen} followers saved. Continue it with `igft resume {service.username}`.",
         err=True,
     )
 

@@ -88,10 +88,10 @@ class SafetyGate:
                     duration=duration,
                     requires_session_check=signal.kind is SignalKind.CHALLENGE,
                 )
-        return guidance_for(signal.kind, cooldown.ends_at if cooldown else None)
+        return guidance_for(signal.kind, cooldown.ends_at if cooldown else None, withheld_list=signal.withheld_list)
 
 
-def guidance_for(kind: SignalKind, ends_at) -> str:
+def guidance_for(kind: SignalKind, ends_at, *, withheld_list: bool = False) -> str:
     if kind is SignalKind.SESSION_REJECTED:
         return (
             f"The saved session was rejected. {restore_session_hint(Backend.INSTALOADER)} "
@@ -103,6 +103,12 @@ def guidance_for(kind: SignalKind, ends_at) -> str:
             "Instagram asked the account to verify itself. Verify the account by hand (for example in "
             "Firefox), restore the session if needed, and then run `igft session check`. Scanning stays "
             f"on hold until {until} and until a session check succeeds."
+        )
+    if withheld_list:
+        return (
+            "Instagram is withholding the follower list from the research account. Scanning is paused until "
+            f"{until}. Before you run `igft resume`, open a followers list in Firefox with the research account "
+            "and check that it is not empty. Starting over from page 1 does not get past this."
         )
     return f"Scanning is paused until {until}. You can continue the scan with `igft resume` after that."
 
@@ -124,12 +130,16 @@ class GuardedFetcher:
     def backend(self) -> Backend:
         return self._fetcher.backend
 
+    def record_block(self, signal: BlockSignal) -> None:
+        """Record a signal, and set its guidance. Also used for one the caller recognised itself."""
+        signal.guidance = self._gate.record_signal(signal, command=self._command, scan_id=self.scan_id)
+
     def _call(self, request: Callable[[], T]) -> T:
         self._gate.guard_command(self._command)
         try:
             return request()
         except BlockSignal as signal:
-            signal.guidance = self._gate.record_signal(signal, command=self._command, scan_id=self.scan_id)
+            self.record_block(signal)
             raise
 
     def get_profile(self, username: str) -> ProfileInfo:

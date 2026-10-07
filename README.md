@@ -219,14 +219,22 @@ added with `target add`. It never makes a request per follower.
   continues the same scan from the saved cursor in the same mode (`--full` or not). With nothing
   to resume, it says so and makes no request.
 - **`resume --restart`.** Starts again from page 1 and keeps the followers already saved. igft
-  never does this by itself. If Instagram rejects the saved cursor, the run stops with the error
-  and suggests `--restart`. A restarted baseline still reads the whole list.
-- **An empty follower list.** A page with no followers is never treated as the end of the list,
-  because that is also how Instagram answers for a private target the research account does not
-  follow. The scan then stops unfinished with the stop reason `list_unavailable`, saves nothing
-  for that page, sets no cooldown and exits with code 5. Make the research account follow the
-  target and run `igft resume <username>`. The end of a list is a page that has followers and no
-  next cursor. A target that really has no followers cannot be scanned.
+  never does this by itself, and does not suggest it after a failed run: starting over from
+  page 1 does not get past a restriction. A restarted baseline still reads the whole list.
+- **An empty follower list.** A page with no followers is never treated as the end of the list.
+  The scan stops unfinished with the stop reason `list_unavailable` and saves nothing for that
+  page. What happens next depends on whether the scan had already saved followers:
+  - *Nothing saved yet* (the first page of a new scan): this is how Instagram answers for a
+    private target the research account does not follow. igft sets no cooldown and exits with
+    code 5. Make the research account follow the target and run `igft resume <username>`.
+  - *Followers already saved*, in this run or an earlier one: an account that could read the list
+    a moment ago has most likely had it withheld, so igft treats it as a rate limit. It starts a
+    cooldown and exits with code 4. (A target that turned private mid-scan looks the same and also
+    costs a cooldown.) After the cooldown, open a followers list in Firefox with the research
+    account, check that it is not empty, and run `igft resume <username>`.
+
+  The end of a list is a page that has followers and no next cursor. A target that really has no
+  followers cannot be scanned.
 - **Repeats and misses.** Instagram's list can reorder between page requests, so a scan can see
   some followers twice and miss others (about 1 in 8 in the spike). igft does not try to correct
   this: a repeat is an ordinary update, and a missed follower is first seen by a later scan.
@@ -238,8 +246,8 @@ added with `target add`. It never makes a request per follower.
 - **Summary and exit codes.** A finished scan prints its stop reason, the pages fetched and
   followers seen, and, except for a baseline, how many were seen for the first time. Exit codes
   are 0 for a finished scan, 1 for an unknown target, an unfinished scan or nothing to resume, 3
-  when refused (see "Request safety"), 4 for a block signal and 5 for another error, Ctrl-C, an
-  empty follower list or the page cap. Every stop except 0 leaves the scan resumable.
+  when refused (see "Request safety"), 4 for a block signal (including a withheld follower list)
+  and 5 for another error, Ctrl-C, an empty first page or the page cap. Every stop except 0 leaves the scan resumable.
 
 ## Reports: `list` and `first-seen`
 
@@ -409,6 +417,7 @@ Instagram objects. Nothing here removes the risk described under "Before you use
   | Signal | What igft does |
   |---|---|
   | rate limit | Starts a cooldown. |
+  | withheld follower list (Instagram redirects a follower request to its home page, or sends an empty page after the scan saved followers; it is recorded as a rate limit) | Starts a cooldown. Wait, then check in Firefox, logged in as the research account, that a followers list opens and is not empty, and then run `igft resume`. |
   | action block | Starts a cooldown. |
   | challenge (Instagram asks the account to verify itself, sometimes only to tick a "confirm you are human" box, with no email or SMS) | Starts a cooldown and a hold: see below. |
   | session rejected (the saved session is no longer valid) | Starts no cooldown. Restore the session with `igft session import`, then run `igft resume`. |

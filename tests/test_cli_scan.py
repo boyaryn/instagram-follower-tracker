@@ -94,6 +94,25 @@ def test_a_block_signal_exits_4_records_it_and_keeps_the_scan(env, use_fetcher):
     assert rows(env, "SELECT count(*) FROM cooldowns") == [(1,)]
 
 
+def test_a_withheld_list_exits_4_says_so_and_keeps_the_scan_and_its_cursor(env, use_fetcher):
+    withheld = BlockSignal(
+        SignalKind.RATE_LIMIT, "HTTP 302 Found redirect to https://www.instagram.com/", withheld_list=True
+    )
+    use_fetcher(pages([1, 2], [3, 4]).raise_on("fetch_followers_page", 2, withheld))
+
+    result = invoke(env, "scan", "alice")
+
+    assert result.exit_code == 4
+    assert "withholding" in result.output
+    assert "Firefox" in result.output
+    assert "igft resume alice" in result.output
+    assert "--restart" not in result.output
+    assert rows(env, "SELECT status, stop_reason, signal_type, pages_fetched, cursor FROM scans") == [
+        ("unfinished", "block_signal", "rate_limit", 1, "c1")
+    ]
+    assert rows(env, "SELECT kind, requires_session_check FROM cooldowns") == [("rate_limit", False)]
+
+
 def test_a_fetch_error_exits_5_and_names_the_resume_commands(env, use_fetcher):
     use_fetcher(pages([1], [2]).raise_on("fetch_followers_page", 2, FetchError("HTTP 500")))
 
@@ -101,7 +120,8 @@ def test_a_fetch_error_exits_5_and_names_the_resume_commands(env, use_fetcher):
 
     assert result.exit_code == 5
     assert "HTTP 500" in result.output
-    assert "igft resume alice --restart" in result.output
+    assert "igft resume alice" in result.output
+    assert "--restart" not in result.output
     assert rows(env, "SELECT count(*) FROM cooldowns") == [(0,)]
 
 
@@ -138,6 +158,21 @@ def test_an_empty_follower_list_exits_5_with_guidance_and_no_cooldown(env, use_f
     assert "follows it" in result.output
     assert rows(env, "SELECT status, stop_reason FROM scans") == [("unfinished", "list_unavailable")]
     assert rows(env, "SELECT count(*) FROM cooldowns") == [(0,)]
+
+
+def test_an_empty_page_after_saved_pages_exits_4_with_withheld_list_guidance(env, use_fetcher):
+    use_fetcher(pages([1], [2], [3], []))
+
+    result = invoke(env, "scan", "alice")
+
+    assert result.exit_code == 4
+    assert "withholding" in result.output
+    assert "igft resume alice" in result.output
+    assert "--restart" not in result.output
+    assert rows(env, "SELECT status, stop_reason, signal_type, pages_fetched, cursor FROM scans") == [
+        ("unfinished", "list_unavailable", "rate_limit", 3, "c3")
+    ]
+    assert rows(env, "SELECT kind, requires_session_check FROM cooldowns") == [("rate_limit", False)]
 
 
 def test_an_unknown_target_exits_1_pointing_to_target_add_and_makes_no_request(env, use_fetcher):
@@ -188,7 +223,7 @@ def test_resume_restart_fetches_page_one_again(env, use_fetcher):
     assert rows(env, "SELECT count(*) FROM persons") == [(3,)]
 
 
-def test_a_rejected_cursor_on_resume_suggests_restart(env, use_fetcher):
+def test_a_rejected_cursor_on_resume_does_not_suggest_restart(env, use_fetcher):
     use_fetcher(pages([1], [2], [3]).raise_on("fetch_followers_page", 2, KeyboardInterrupt()))
     invoke(env, "scan", "alice")
     use_fetcher(pages([1]).raise_on("fetch_followers_page", 1, FetchError("cursor rejected")))
@@ -197,7 +232,8 @@ def test_a_rejected_cursor_on_resume_suggests_restart(env, use_fetcher):
 
     assert result.exit_code == 5
     assert "cursor rejected" in result.output
-    assert "igft resume alice --restart" in result.output
+    assert "igft resume alice" in result.output
+    assert "--restart" not in result.output
 
 
 def test_resume_with_nothing_unfinished_exits_1_and_makes_no_request(env, use_fetcher):

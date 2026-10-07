@@ -29,8 +29,6 @@ def exit_code_for(exc: BaseException) -> int:
 def message_for(exc: BaseException) -> str:
     if isinstance(exc, BlockSignal) and exc.guidance:
         return f"{exc.message}\n{exc.guidance}"
-    if isinstance(exc, FetchError) and exc.hint:
-        return f"{exc.message}\n{exc.hint}"
     if isinstance(exc, IgftError):
         return exc.message
     if isinstance(exc, OperationalError):

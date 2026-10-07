@@ -10,6 +10,7 @@ from igft.db.targets import add_target
 from igft.domain import Backend, BlockSignal, CommandRefused, SignalKind
 from igft.safety.gate import GuardedFetcher, SafetyGate
 from igft.safety.lock import instagram_lock
+from igft.timeutil import format_local
 from fakes import FakeFetcher, followers
 
 pytestmark = pytest.mark.db
@@ -196,6 +197,30 @@ def test_a_rejected_session_creates_no_cooldown(engine, gate):
         assert safety_state.active_cooldowns(conn) == []
         assert safety_state.holds_missing_check(conn) == []
     assert "session import" in guidance
+
+
+def test_a_withheld_list_sets_a_rate_limit_cooldown_without_a_hold_and_says_what_happened(engine, gate):
+    signal = BlockSignal(SignalKind.RATE_LIMIT, "HTTP 302 Found redirect to https://www.instagram.com/", withheld_list=True)
+
+    guidance = gate.record_signal(signal, command="resume", scan_id=new_scan(engine))
+
+    with engine.connect() as conn:
+        cooldowns = safety_state.active_cooldowns(conn)
+        assert [(c.kind, c.requires_session_check) for c in cooldowns] == [("rate_limit", False)]
+        assert safety_state.holds_missing_check(conn) == []
+        ends = format_local(cooldowns[0].ends_at)
+    assert "withholding" in guidance
+    assert ends in guidance
+    assert "Firefox" in guidance
+    assert "igft resume" in guidance
+    assert "--restart" not in guidance
+    assert "page 1" in guidance
+
+
+def test_a_plain_rate_limit_keeps_its_own_guidance(engine, gate):
+    guidance = gate.record_signal(BlockSignal(SignalKind.RATE_LIMIT, "429"), command="scan", scan_id=new_scan(engine))
+
+    assert "withholding" not in guidance
 
 
 def test_the_signal_is_saved_even_when_the_page_transaction_rolls_back(engine, gate):

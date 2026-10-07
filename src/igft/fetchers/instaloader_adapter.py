@@ -124,33 +124,49 @@ def describe(response: requests.Response) -> str:
     return text
 
 
-def classify(response: requests.Response) -> BlockSignal | FetchError:
+def _redirects_to_home_page(response: requests.Response) -> bool:
+    """True for a redirect whose target is Instagram's home page, relative or on instagram.com."""
+    location = response.headers.get("location", "")
+    if not 300 <= response.status_code < 400 or not location:
+        return False
+    target = urlparse(location)
+    host = (target.hostname or "").lower()
+    on_instagram = host in ("", "instagram.com") or host.endswith(".instagram.com")
+    return on_instagram and target.path in ("", "/")
+
+
+def classify(response: requests.Response, *, follower_page: bool = False) -> BlockSignal | FetchError:
     """Map a response that is not a success to a block signal, or to a `FetchError` with its raw message.
 
-    Challenge or checkpoint first, then `feedback_required` (an action block), then a rejected session, then a
-    rate limit (HTTP 429 or a "please wait" message). Anything else is a `FetchError`: it is never guessed to be
+    Challenge or checkpoint first, then `feedback_required` (an action block), then a rejected session, then, for
+    a follower-page request only, a redirect to the home page (the follower list withheld from the account), then
+    a rate limit (HTTP 429 or a "please wait" message). Anything else is a `FetchError`: it is never guessed to be
     a block, and it is never retried.
     """
     raw = describe(response)
     lowered = raw.lower()
     path = urlparse(response.headers.get("location", "")).path.lower()
+    withheld_list = False
     if "challenge_required" in lowered or "checkpoint_required" in lowered or _CHALLENGE_PATH.match(path):
         kind = SignalKind.CHALLENGE
     elif "feedback_required" in lowered:
         kind = SignalKind.ACTION_BLOCK
     elif "login_required" in lowered or "require_login" in lowered or path.startswith("/accounts/login"):
         kind = SignalKind.SESSION_REJECTED
+    elif follower_page and _redirects_to_home_page(response):
+        kind = SignalKind.RATE_LIMIT
+        withheld_list = True
     elif response.status_code == 429 or "please wait a few minutes" in lowered:
         kind = SignalKind.RATE_LIMIT
     else:
         return FetchError(raw)
-    return BlockSignal(kind, raw, parse_stated_wait(raw))
+    return BlockSignal(kind, raw, parse_stated_wait(raw), withheld_list=withheld_list)
 
 
-def _json(response: requests.Response) -> dict[str, Any]:
+def _json(response: requests.Response, *, follower_page: bool = False) -> dict[str, Any]:
     """The JSON object of a successful response, or the error for anything else (including `status` not `ok`)."""
     if response.status_code != 200:
-        raise classify(response)
+        raise classify(response, follower_page=follower_page)
     try:
         data = response.json()
     except ValueError:
@@ -158,7 +174,7 @@ def _json(response: requests.Response) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise FetchError(f"{describe(response)}: the body is not a JSON object")
     if data.get("status", "ok") != "ok":
-        raise classify(response)
+        raise classify(response, follower_page=follower_page)
     return data
 
 
@@ -272,7 +288,7 @@ class InstaloaderFetcher:
             params=params,
             headers=api_headers(self._user_agent, self._csrftoken, referer),
         )
-        data = _json(response)
+        data = _json(response, follower_page=True)
         users = data.get("users")
         if not isinstance(users, list):
             raise FetchError(f"{describe(response)}: the response has no list of users")

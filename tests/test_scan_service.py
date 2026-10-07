@@ -6,7 +6,7 @@ from sqlalchemy import text
 from fakes import FakeFetcher, followers
 from igft.db.scans import get_scan
 from igft.db.targets import add_target
-from igft.domain import BlockSignal, FetchError, SignalKind, UnknownTarget
+from igft.domain import BlockSignal, CommandRefused, FetchError, SignalKind, UnknownTarget
 from igft.safety.gate import GuardedFetcher, SafetyGate
 from igft.safety.pacer import Pacer
 from igft.scanning.service import NothingToResume, ScanProgress, ScanService, ScanUnfinished
@@ -77,6 +77,7 @@ def test_an_unfinished_scan_blocks_a_new_one_and_points_to_resume(engine):
         service(engine, fetcher).start("alice")
 
     assert "igft resume alice" in excinfo.value.message
+    assert "--restart" not in excinfo.value.message
     assert fetcher.total_calls == 0
     assert count(engine, "scans") == 1
 
@@ -359,24 +360,86 @@ def test_an_empty_first_page_of_a_baseline_is_not_the_end_of_the_list(engine):
     assert later.scan.runs == 2
 
 
-def test_an_empty_page_after_five_saved_pages_keeps_them_and_the_cursor(engine):
+def cooldown_rows(engine):
+    with engine.connect() as conn:
+        return conn.execute(text("SELECT kind, requires_session_check FROM cooldowns")).all()
+
+
+def test_an_empty_page_after_five_saved_pages_is_a_withheld_list_that_keeps_them_and_the_cursor(engine):
     fetcher = pages([1], [2], [3], [4], [5], [])
 
-    result = service(engine, fetcher).start("alice")
+    with pytest.raises(BlockSignal) as excinfo:
+        service(engine, fetcher).start("alice")
 
-    scan = result.scan
+    assert excinfo.value.kind is SignalKind.RATE_LIMIT
+    assert excinfo.value.withheld_list
+    assert "5 pages" in excinfo.value.raw_message
+    assert "withholding" in excinfo.value.guidance
+    scan = scan_row(engine)
     assert (scan.status, scan.stop_reason) == ("unfinished", "list_unavailable")
     assert scan.pages_fetched == 5
     assert scan.cursor == "c5"
+    assert (scan.signal_type, scan.signal_message) == ("rate_limit", excinfo.value.raw_message)
     assert count(engine, "follows") == 5
+    assert cooldown_rows(engine) == [("rate_limit", False)]
+    assert fetcher.total_calls == 6
+
+
+def test_an_empty_first_page_of_a_resumed_run_after_saved_pages_is_a_withheld_list(engine):
+    first = pages([1], [2], [3]).raise_on("fetch_followers_page", 3, KeyboardInterrupt())
+    with pytest.raises(KeyboardInterrupt):
+        service(engine, first).start("alice")
     assert count(engine, "cooldowns") == 0
+    second = pages([1], [2], [])
+
+    with pytest.raises(BlockSignal) as excinfo:
+        service(engine, second).resume("alice")
+
+    assert excinfo.value.withheld_list
+    scan = scan_row(engine)
+    assert (scan.status, scan.stop_reason, scan.runs) == ("unfinished", "list_unavailable", 2)
+    assert scan.pages_fetched == 2 and scan.cursor == "c2"
+    assert cooldown_rows(engine) == [("rate_limit", False)]
+    assert second.calls["fetch_followers_page"] == 1
 
 
-def test_an_empty_page_does_not_block_later_commands(engine):
+def test_an_empty_first_page_of_a_restarted_run_after_saved_pages_is_a_withheld_list(engine):
+    first = pages([1], [2], [3]).raise_on("fetch_followers_page", 3, KeyboardInterrupt())
+    with pytest.raises(KeyboardInterrupt):
+        service(engine, first).start("alice")
+
+    with pytest.raises(BlockSignal):
+        service(engine, pages([])).resume("alice", restart=True)
+
+    assert cooldown_rows(engine) == [("rate_limit", False)]
+    assert scan_row(engine).stop_reason == "list_unavailable"
+
+
+def test_an_empty_page_before_any_page_was_saved_sets_no_cooldown(engine):
+    result = service(engine, pages([])).start("alice")
+
+    assert result.scan.stop_reason == "list_unavailable"
+    assert count(engine, "cooldowns") == 0
+    assert result.scan.signal_type is None
+
+
+def test_an_empty_page_before_any_page_was_saved_does_not_block_later_commands(engine):
     service(engine, pages([])).start("alice")
 
     guard = SafetyGate(engine, timedelta(hours=24))
     for command in ("scan", "resume", "target add"):
+        guard.guard_command(command)
+
+
+def test_a_withheld_list_after_saved_pages_refuses_later_commands_until_the_cooldown_ends(engine):
+    with pytest.raises(BlockSignal):
+        service(engine, pages([1], [])).start("alice")
+
+    guard = SafetyGate(engine, timedelta(hours=24))
+    for command in ("scan", "resume", "target add"):
+        with pytest.raises(CommandRefused):
+            guard.guard_command(command)
+    for command in ("session check", "session import"):
         guard.guard_command(command)
 
 
@@ -444,10 +507,9 @@ def test_a_rejected_cursor_stops_as_a_fetch_error_and_keeps_the_scan(engine):
         service(engine, first).start("alice")
     rejected = pages([1], [2], [3]).raise_on("fetch_followers_page", 1, FetchError("cursor rejected"))
 
-    with pytest.raises(FetchError) as excinfo:
+    with pytest.raises(FetchError):
         service(engine, rejected).resume("alice")
 
-    assert "igft resume alice --restart" in excinfo.value.hint
     scan = scan_row(engine)
     assert scan.status == "unfinished"
     assert scan.cursor == "c2"

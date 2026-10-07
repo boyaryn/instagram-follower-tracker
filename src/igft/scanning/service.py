@@ -11,7 +11,7 @@ from igft.db import follows as follows_repo
 from igft.db import persons as persons_repo
 from igft.db import scans as scans_repo
 from igft.db import targets as targets_repo
-from igft.domain import BlockSignal, FetchError, IgftError, UnknownTarget
+from igft.domain import BlockSignal, FetchError, IgftError, SignalKind, UnknownTarget
 from igft.safety.gate import GuardedFetcher
 from igft.safety.pacer import Pacer
 
@@ -23,10 +23,7 @@ LIST_UNAVAILABLE_MESSAGE = (
 
 class ScanUnfinished(IgftError):
     def __init__(self, username: str) -> None:
-        super().__init__(
-            f"The last scan of @{username} is unfinished. Continue it with `igft resume {username}`, "
-            f"or start from page 1 with `igft resume {username} --restart`."
-        )
+        super().__init__(f"The last scan of @{username} is unfinished. Continue it with `igft resume {username}`.")
 
 
 class NothingToResume(IgftError):
@@ -114,15 +111,7 @@ class ScanService:
                 raise NothingToResume(target.username)
             scans_repo.begin_run(conn, scan.id, restart=restart)
             scan = scans_repo.get_scan(conn, scan.id)
-        try:
-            return self._run(target, scan)
-        except FetchError as exc:
-            if not restart:
-                exc.hint = (
-                    f"If Instagram rejected the saved cursor, start over from page 1 with "
-                    f"`igft resume {target.username} --restart`. Followers already saved are kept."
-                )
-            raise
+        return self._run(target, scan)
 
     def _run(self, target: targets_repo.Target, scan: scans_repo.Scan) -> ScanResult:
         self.scan_id = scan.id
@@ -132,12 +121,23 @@ class ScanService:
         cursor = scan.cursor
         pages = 0
         fully_known_in_a_row = 0
+        withheld: BlockSignal | None = None
         try:
             while True:
                 self._pacer.wait()
                 page = self._fetcher.fetch_followers_page(target.id, cursor, username=target.username)
                 if not page.followers:
-                    return self._stop(target, pages, "list_unavailable", LIST_UNAVAILABLE_MESSAGE)
+                    saved_pages = scan.pages_fetched + pages
+                    if saved_pages == 0:
+                        return self._stop(target, pages, "list_unavailable", LIST_UNAVAILABLE_MESSAGE)
+                    withheld = BlockSignal(
+                        SignalKind.RATE_LIMIT,
+                        f"empty follower page after {saved_pages} pages were saved",
+                        withheld_list=True,
+                    )
+                    self._fetcher.record_block(withheld)
+                    self._mark_stopped(scan.id, "list_unavailable")
+                    raise withheld
                 fully_known = self._save_page(target.id, scan.id, page)
                 pages += 1
                 cursor = page.next_cursor
@@ -150,8 +150,9 @@ class ScanService:
                 if pages >= self._page_cap:
                     return self._stop(target, pages, "page_cap")
                 self._report_progress(pages)
-        except BlockSignal:
-            self._mark_stopped(scan.id, "block_signal")
+        except BlockSignal as signal:
+            if signal is not withheld:
+                self._mark_stopped(scan.id, "block_signal")
             raise
         except FetchError as exc:
             self._mark_stopped(scan.id, "error", error=exc.raw_message)

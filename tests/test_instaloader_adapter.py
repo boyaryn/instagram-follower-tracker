@@ -612,3 +612,64 @@ def test_a_login_redirect_with_the_verification_page_in_its_query_is_still_a_rej
     )
 
     assert classify(response).kind is SignalKind.SESSION_REJECTED
+
+
+HOME_REDIRECTS = {
+    "the absolute home page": "https://www.instagram.com/",
+    "a relative home page": "/",
+    "the home page with a query": "https://www.instagram.com/?x=1",
+}
+
+
+@pytest.mark.parametrize("location", HOME_REDIRECTS.values(), ids=HOME_REDIRECTS.keys())
+def test_a_redirect_to_the_home_page_on_a_follower_request_is_a_withheld_list(fetcher, mocked_http, location):
+    serve(FOLLOWERS_URL, 302, {"Location": location}, "", "text/html")
+
+    with pytest.raises(BlockSignal) as caught:
+        fetcher.fetch_followers_page(TARGET_ID, None, username="alice")
+
+    assert caught.value.kind is SignalKind.RATE_LIMIT
+    assert caught.value.withheld_list is True
+    assert "302" in caught.value.raw_message and location in caught.value.raw_message
+    assert len(mocked_http.calls) == 1
+
+
+@pytest.mark.parametrize("call", ["get_profile", "check_session"])
+def test_a_redirect_to_the_home_page_on_another_request_is_a_fetch_error(fetcher, mocked_http, call):
+    url, run = CALLS[call]
+    serve(url, 302, {"Location": "https://www.instagram.com/"}, "", "text/html")
+
+    with pytest.raises(FetchError) as caught:
+        run(fetcher)
+
+    assert not isinstance(caught.value, BlockSignal)
+    assert len(mocked_http.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Location": "http://192.168.0.1/"},
+        {"Location": "https://example.com/"},
+        {"Location": "https://www.instagram.com/explore/"},
+        {},
+    ],
+    ids=["a captive portal", "another site", "another Instagram page", "no Location"],
+)
+def test_a_follower_request_redirect_that_is_not_the_home_page_is_a_fetch_error(fetcher, mocked_http, headers):
+    serve(FOLLOWERS_URL, 302, headers, "", "text/html")
+
+    with pytest.raises(FetchError) as caught:
+        fetcher.fetch_followers_page(TARGET_ID, None, username="alice")
+
+    assert not isinstance(caught.value, BlockSignal)
+    assert len(mocked_http.calls) == 1
+
+
+def test_only_a_withheld_list_signal_carries_the_flag(fetcher, mocked_http):
+    serve(FOLLOWERS_URL, 429, {}, "", "text/plain")
+
+    with pytest.raises(BlockSignal) as caught:
+        fetcher.fetch_followers_page(TARGET_ID, None, username="alice")
+
+    assert caught.value.withheld_list is False
